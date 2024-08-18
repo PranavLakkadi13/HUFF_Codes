@@ -39,15 +39,15 @@ contract MATHSOLC {
         }
     }
     
-    function ceil(uint a) public pure returns (uint) {
+    function ceil(int a) public pure returns (int) {
         return a + 1;
     }
     
-    function floor(uint a) public pure returns (uint) {
+    function floor(int a) public pure returns (int) {
         return a - 1;
     }
     
-    function round(uint a) public pure returns (uint) {
+    function round(int a) public pure returns (int) {
         return a + 1;
     }
     

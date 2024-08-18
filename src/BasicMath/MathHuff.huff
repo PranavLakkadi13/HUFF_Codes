@@ -1,0 +1,46 @@
+// Interfaces
+#define function add(uint a, uint b) nonpayable returns (uint)
+
+
+
+// Errors 
+#define error InvalidCallDataSize()
+
+
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x04                   // [0x04]
+    calldatasize           // [calldatasize, 0x04]
+    lt                     // [bool]
+    iszero                 // [bool]
+    iszero                 // [bool]
+    size_error             // [PC,bool]
+    jumpi
+
+    0x00                   // [0]
+    calldataload           // [calldata]
+    0xe0                   // [0xe0, calldata]
+    shr                    // [func_selector]
+
+    0x20
+    0x00
+    revert 
+
+    size_error:
+        SIZE_ERROR()
+}
+
+
+
+
+#define macro SIZE_ERROR() = takes(0) returns(0) {
+    0x0f                               // [0]
+    __ERROR(InvalidCallDataSize)       // [calldata,0]
+    0x00                               // [0, calldata,0]
+    mstore                             // [0]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 0]
+    mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
+    0x24                               // [0x24]
+    0x00                               // [0x24, 0]
+    return                             // []
+}

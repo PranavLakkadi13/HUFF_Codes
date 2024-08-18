@@ -5,8 +5,12 @@ libs = ["lib"]
 ffi = true
 evm_version = "cancun"
 
+[fuzz]
+runs = 1000
+seed = "0x12343"
+
 remappings = ["foundry-huff/=lib/foundry-huff/src",
               "@openzeppelin/=lib/openzeppelin-contracts/",
-              "huffmate/=lib/huffmate"]
+              "huffmate/=lib/huffmate/"]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
