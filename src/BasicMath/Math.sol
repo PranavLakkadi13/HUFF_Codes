@@ -1,7 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.25;
 
 contract MATHSOLC {
+    function prime(uint n) public pure returns (bool) {
+        if (n < 2) {
+            return false;
+        }
+        for (uint i = 2; i * i <= n; i++) {
+            if (n % i == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     function add(uint a, uint b) public pure returns (uint) {
         return a + b;
     }

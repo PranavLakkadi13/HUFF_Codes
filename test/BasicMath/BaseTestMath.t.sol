@@ -59,5 +59,10 @@ abstract contract BaseTestMath is Test {
         uint256 result = s_math.sqrt(y);
         assert(result <= y );
     }
+
+    function testPrime(uint n) public {
+        n = bound(n,0,1e3);
+        s_math.prime(n);
+    }
     
 }

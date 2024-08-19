@@ -339,7 +339,6 @@
 
 
 #define macro FEED_HORSE() = takes(0) returns(0) {
-                   // []
     timestamp           // [timestamp]
     0x04                // [0x04, timestamp]
     calldataload        // [key, timestamp]

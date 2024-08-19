@@ -5,36 +5,58 @@
 
 // Errors 
 #define error InvalidCallDataSize()
+#define error MSGValueNotZero()
 
 
 
 #define macro MAIN() = takes(0) returns(0) {
+    callvalue              // [msg.value]
+    iszero                 // [bool]
+    iszero                 // [bool]
+    MSGError               // [PC,bool]
+    jumpi
+
     0x04                   // [0x04]
     calldatasize           // [calldatasize, 0x04]
     lt                     // [bool]
     iszero                 // [bool]
     iszero                 // [bool]
     size_error             // [PC,bool]
-    jumpi
+    jumpi                  // [] 
 
     0x00                   // [0]
     calldataload           // [calldata]
     0xe0                   // [0xe0, calldata]
     shr                    // [func_selector]
+    dup1                   // [func_selector, func_selector]
+
+    __FUNC_SIG(add)        // [add_selector,func_selector,func_selector]
+    eq                     // [bool,func_selector]
+    add_selector           // [PC,bool,func_selector]
+    jumpi                  // [func_selector]
+
 
     0x20
     0x00
     revert 
 
+
+
     size_error:
-        SIZE_ERROR()
+        SIZE_ERROR()       
+        
+    MSGError:
+        MSGValueERROR()    
+        
+    add_selector:
+        Add()                
 }
 
 
 
 
 #define macro SIZE_ERROR() = takes(0) returns(0) {
-    0x0f                               // [0]
+    0x00                               // [0]
     __ERROR(InvalidCallDataSize)       // [calldata,0]
     0x00                               // [0, calldata,0]
     mstore                             // [0]  memory: 0x00 -> error_selector
@@ -42,5 +64,32 @@
     mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
     0x24                               // [0x24]
     0x00                               // [0x24, 0]
+    return                             // []
+}
+
+
+#define macro MSGValueERROR() = takes(0) returns(0) {
+    0x00                               // [0]
+    __ERROR(MSGValueNotZero)           // [calldata,0]
+    0x00                               // [0, calldata,0]
+    mstore                             // [0]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 0]
+    mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
+    0x24                               // [0x24]
+    0x00                               // [0x24, 0]
+    return                             // []
+}
+
+
+#define macro Add() = takes(0) returns(0) {
+    0x04                               // [0x04]
+    calldataload                       // [calldata_num1]
+    0x24                               // [0x24, calldata_num1]
+    calldataload                       // [calldata_num2, calldata_num1]
+    add                                // [calldata_num1 + calldata_num2]
+    0x00                               // [calldata_num1 + calldata_num2, 0]
+    mstore                             // []  memory: 0x00 -> calldata_num1 + calldata_num2
+    0x20                               // [0x20]
+    0x00                               // [0x20, 0]
     return                             // []
 }

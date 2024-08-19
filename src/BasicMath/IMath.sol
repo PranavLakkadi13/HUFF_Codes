@@ -2,6 +2,9 @@
 pragma solidity ^0.8.20;
 
 interface IMATH {
+
+    function prime(uint n) external returns (bool);
+
     function add(uint a, uint b) external returns (uint);
 
     function sub(uint a, uint b) external returns (uint);
