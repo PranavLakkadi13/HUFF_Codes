@@ -1,11 +1,12 @@
 // Interfaces
-#define function add(uint a, uint b) nonpayable returns (uint)
+#define function add(uint a, uint b) pure returns (uint)
 
 
 
 // Errors 
 #define error InvalidCallDataSize()
 #define error MSGValueNotZero()
+#define error OverflowError()
 
 
 
@@ -34,7 +35,6 @@
     eq                     // [bool,func_selector]
     add_selector           // [PC,bool,func_selector]
     jumpi                  // [func_selector]
-
 
     0x20
     0x00
@@ -81,15 +81,65 @@
 }
 
 
+#define macro OverflowError() = takes(0) returns(0) {
+    0x01                               // [0]
+    __ERROR(OverflowError)             // [calldata,0]
+    0x00                               // [0, calldata,0]
+    mstore                             // [0]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 0]
+    mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
+    0x24                               // [0x24]
+    0x00                               // [0x24, 0]
+    return                             // []
+}
+
+
 #define macro Add() = takes(0) returns(0) {
-    0x04                               // [0x04]
-    calldataload                       // [calldata_num1]
-    0x24                               // [0x24, calldata_num1]
-    calldataload                       // [calldata_num2, calldata_num1]
-    add                                // [calldata_num1 + calldata_num2]
-    0x00                               // [calldata_num1 + calldata_num2, 0]
-    mstore                             // []  memory: 0x00 -> calldata_num1 + calldata_num2
+    0x04                               // [0x04, func_selector]
+    calldataload                       // [calldata_num1, func_selector]]
+    0x24                               // [0x24, calldata_num1, func_selector]]
+    calldataload                       // [calldata_num2, calldata_num1, func_selector]]
+    
+    dup2                               // [calldata_num1, calldata_num2, calldata_num1, func_selector]]
+    dup2                               // [calldata_num2, calldata_num1, calldata_num2, calldata_num1, func_selector]]
+    add                                // [sum, calldata_num2, calldata_num1, func_selector]]
+    
+    swap2                              // [calldata_num1, calldata_num2, sum, func_selector]
+    MAX_INTERNAL()                     // [maxvalue, sum, func_selector]
+    dup2                               // [sum, maxvalue, sum, func_selector]
+    lt                                 // [bool, sum,func_selector]
+    overflowRevert                     // [PC,bool,sum, func_selector]
+    jumpi                              // [sum, func_selector]
+
+    swap1                              // [func_selector, sum]
+    pop                                // [sum]
+    0x00                               // [0, sum]
+    mstore                             // []  memory: 0x00 -> sum
     0x20                               // [0x20]
     0x00                               // [0x20, 0]
     return                             // []
+
+
+    overflowRevert:
+        OverflowError()
 }
+
+
+#define macro MAX_INTERNAL() = takes(4) returns(3) {
+                        // [calldata_num1, calldata_num2, sum, func_selector]
+    dup2                // [calldata_num2, calldata_num1, calldata_num2, sum, func_selector]
+    dup2                // [calldata_num1, calldata_num2, calldata_num1, calldata_num2, sum, func_selector]
+    gt                  // [bool, calldata_num1, calldata_num2, sum, func_selector]
+    calldata_num1       // [Pc, bool, calldata_num1 ,calldata_num2, sum, func_selector]
+    jumpi               // [calldata_num1 ,calldata_num2, sum, func_selector]
+    0x01                // [0x01, calldata_num1 ,calldata_num2, sum, func_selector]
+    calldata_num2       // [PC, 0x01, calldata_num1 ,calldata_num2, sum, func_selector]
+    jumpi               // [calldata_num1,calldata_num2, sum, func_selector]
+
+    calldata_num1:
+        swap1           // [calldata_num2 ,calldata_num1, sum, func_selector]
+        pop             // [calldata_num1, sum, func_selector]
+    
+    calldata_num2:
+        pop             // [calldata_num2, sum, func_selector]
+}   
