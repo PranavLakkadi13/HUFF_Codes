@@ -10,4 +10,9 @@ contract HorseStoreHuff is BaseTestMath {
     function setUp() public override {
         s_math = IMATH(address(MATHSOLC(HuffDeployer.config().deploy("BasicMath/MathHuff"))));
     }
+
+    function testAddRevert() public {
+        vm.expectRevert();
+        s_math.add(type(uint256).max, 2);
+    }
 }

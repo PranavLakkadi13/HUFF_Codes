@@ -1,5 +1,6 @@
 // Interfaces
 #define function add(uint a, uint b) pure returns (uint)
+#define function sub(uint a, uint b) pure returns (uint)
 
 
 
@@ -7,6 +8,7 @@
 #define error InvalidCallDataSize()
 #define error MSGValueNotZero()
 #define error OverflowError()
+#define error UnderFlowError()
 
 
 
@@ -36,6 +38,12 @@
     add_selector           // [PC,bool,func_selector]
     jumpi                  // [func_selector]
 
+    dup1                   // [func_selector, func_selector] 
+    __FUNC_SIG(sub)        // [sub_selector,func_selector,func_selector]
+    eq                     // [bool,func_selector]
+    sub_selector           // [PC,bool,func_selector]
+    jumpi                  // [func_selector]
+
     0x20
     0x00
     revert 
@@ -49,7 +57,10 @@
         MSGValueERROR()    
         
     add_selector:
-        Add()                
+        Add()              
+
+    sub_selector:
+        Sub()              
 }
 
 
@@ -93,6 +104,62 @@
     revert                             // []
 }
 
+#define macro UnderFlowRevert() = takes(0) returns(0) {
+    0x01                               // [0]
+    __ERROR(UnderFlowError)            // [calldata,0]
+    0x00                               // [0, calldata,0]
+    mstore                             // [0]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 0]
+    mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
+    0x24                               // [0x24]
+    0x00                               // [0x24, 0]
+    revert                             // []
+}
+
+
+#define macro MAX_INTERNAL() = takes(2) returns(3) {
+                        // [calldata_num1, calldata_num2, sum, func_selector]
+    dup2                // [calldata_num2, calldata_num1, calldata_num2, sum, func_selector]
+    dup2                // [calldata_num1, calldata_num2, calldata_num1, calldata_num2, sum, func_selector]
+    gt                  // [bool, calldata_num1, calldata_num2, sum, func_selector]
+    calldata_num1       // [Pc, bool, calldata_num1 ,calldata_num2, sum, func_selector]
+    jumpi               // [calldata_num1 ,calldata_num2, sum, func_selector]
+    
+    0x01                // [0x01, calldata_num1 ,calldata_num2, sum, func_selector]
+    calldata_num2       // [PC, 0x01, calldata_num1 ,calldata_num2, sum, func_selector]
+    jumpi               // [calldata_num1,calldata_num2, sum, func_selector]
+
+    calldata_num1:
+        swap1           // [calldata_num2 ,calldata_num1, sum, func_selector]
+        pop             // [calldata_num1, sum, func_selector]
+        dup1            // [calldata_num1, calldata_num1,sum, func_selector]
+    
+    calldata_num2:
+        pop             // [calldata_num2, sum, func_selector]
+}
+
+
+#define macro MIN_INTERNAL() = takes(2) returns(3) {
+                        // [calldata_num1, calldata_num2, sub, func_selector]
+    dup2                // [calldata_num2, calldata_num1, calldata_num2, sub, func_selector]
+    dup2                // [calldata_num1, calldata_num2, calldata_num1, calldata_num2, sub, func_selector]
+    gt                  // [bool, calldata_num1, calldata_num2, sub, func_selector]
+    calldata_num1       // [Pc, bool, calldata_num1 ,calldata_num2, sub, func_selector]
+    jumpi               // [calldata_num1 ,calldata_num2, sub, func_selector]
+    
+    0x01                // [0x01, calldata_num1 ,calldata_num2, sub, func_selector]
+    calldata_num2       // [PC, 0x01, calldata_num1 ,calldata_num2, sub, func_selector]
+    jumpi               // [calldata_num1,calldata_num2, sub, func_selector]
+
+    calldata_num1:
+        swap1           // [calldata_num2 ,calldata_num1, sub, func_selector]
+        pop             // [calldata_num1, sub, func_selector]
+        dup1            // [calldata_num1, calldata_num1,sub, func_selector]
+    
+    calldata_num2:
+        pop             // [calldata_num2, sub, func_selector]
+}
+
 
 #define macro Add() = takes(0) returns(0) {
     0x04                               // [0x04, func_selector]
@@ -125,23 +192,32 @@
 }
 
 
-#define macro MAX_INTERNAL() = takes(2) returns(3) {
-                        // [calldata_num1, calldata_num2, sum, func_selector]
-    dup2                // [calldata_num2, calldata_num1, calldata_num2, sum, func_selector]
-    dup2                // [calldata_num1, calldata_num2, calldata_num1, calldata_num2, sum, func_selector]
-    gt                  // [bool, calldata_num1, calldata_num2, sum, func_selector]
-    calldata_num1       // [Pc, bool, calldata_num1 ,calldata_num2, sum, func_selector]
-    jumpi               // [calldata_num1 ,calldata_num2, sum, func_selector]
-    
-    0x01                // [0x01, calldata_num1 ,calldata_num2, sum, func_selector]
-    calldata_num2       // [PC, 0x01, calldata_num1 ,calldata_num2, sum, func_selector]
-    jumpi               // [calldata_num1,calldata_num2, sum, func_selector]
 
-    calldata_num1:
-        swap1           // [calldata_num2 ,calldata_num1, sum, func_selector]
-        pop             // [calldata_num1, sum, func_selector]
-        dup1            // [calldata_num1, calldata_num1,sum, func_selector]
+#define macro Sub() = takes(0) returns(0) {
+    0x04                              // [0x04, func_selector]
+    calldataload                       // [calldata_num1, func_selector]
+    0x24                               // [0x24, calldata_num1, func_selector]
+    calldataload                       // [calldata_num2, calldata_num1, func_selector]
     
-    calldata_num2:
-        pop             // [calldata_num2, sum, func_selector]
-}   
+    dup2                               // [calldata_num1, calldata_num2, calldata_num1, func_selector]
+    dup2                               // [calldata_num2, calldata_num1, calldata_num2, calldata_num1, func_selector]
+    sub                                // [sub, calldata_num2, calldata_num1, func_selector]
+    
+    swap2                              // [calldata_num1, calldata_num2, sub, func_selector]
+    MIN_INTERNAL()                     // [minvalue, sub, func_selector]
+    dup2                               // [sub, minvalue, sub, func_selector]
+    gt                                 // [bool, sub,func_selector]
+    underflowRevert                    // [PC,bool,sub, func_selector]
+    jumpi                              // [sub, func_selector]
+
+    0x00                               // [0x00, sub, func_selector]
+    mstore                             // [func_selector]  memory: 0x00 -> sub
+    0x20                               // [0x20]
+    0x00                               // [0x20, 0]
+    return                             // []
+
+    underflowRevert:
+        UnderFlowRevert()
+
+}
+   
