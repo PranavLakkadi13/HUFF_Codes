@@ -1,7 +1,8 @@
 // Interfaces
 #define function add(uint a, uint b) pure returns (uint)
 #define function sub(uint a, uint b) pure returns (uint)
-
+#define function mul(uint a, uint b) pure returns (uint)
+#define function div(uint a, uint b) pure returns (uint)
 
 
 // Errors 
@@ -9,6 +10,7 @@
 #define error MSGValueNotZero()
 #define error OverflowError()
 #define error UnderFlowError()
+#define error DivByZeroError()
 
 
 
@@ -44,6 +46,18 @@
     sub_selector           // [PC,bool,func_selector]
     jumpi                  // [func_selector]
 
+    dup1                   // [func_selector, func_selector]
+    __FUNC_SIG(mul)        // [mul_selector,func_selector,func_selector]
+    eq                     // [bool,func_selector]
+    mul_selector           // [PC,bool,func_selector]
+    jumpi                  // [func_selector]
+
+    dup1                   // [func_selector, func_selector]
+    __FUNC_SIG(div)        // [div_selector,func_selector,func_selector]
+    eq                     // [bool,func_selector]
+    div_selector           // [PC,bool,func_selector]
+    jumpi                  // [func_selector]
+
     0x20
     0x00
     revert 
@@ -61,58 +75,77 @@
 
     sub_selector:
         Sub()              
+
+    mul_selector:
+        Mul()              
+
+    div_selector:
+        Div()                          
 }
 
 
 
 
 #define macro SIZE_ERROR() = takes(0) returns(0) {
-    0x00                               // [0]
-    __ERROR(InvalidCallDataSize)       // [calldata,0]
-    0x00                               // [0, calldata,0]
-    mstore                             // [0]  memory: 0x00 -> error_selector
-    0x04                               // [0x04, 0]
+    0x00                               // [0x00]
+    __ERROR(InvalidCallDataSize)       // [calldata,0x00]
+    0x00                               // [0x00, calldata,0x00]
+    mstore                             // [0x00]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 0x00]
     mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
     0x24                               // [0x24]
-    0x00                               // [0x24, 0]
+    0x00                               // [0x00 ,0x24]
     revert                             // []
 }
 
 
 #define macro MSGValueERROR() = takes(0) returns(0) {
-    0x00                               // [0]
-    __ERROR(MSGValueNotZero)           // [calldata,0]
-    0x00                               // [0, calldata,0]
-    mstore                             // [0]  memory: 0x00 -> error_selector
-    0x04                               // [0x04, 0]
+    0x00                               // [0x00]
+    __ERROR(MSGValueNotZero)           // [calldata,0x00]
+    0x00                               // [0x00, calldata,0x00]
+    mstore                             // [0x00]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 0x00]
     mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
     0x24                               // [0x24]
-    0x00                               // [0x24, 0]
+    0x00                               // [0x00, 0x24]
     revert                             // []
 }
 
 
 #define macro OverflowRevert() = takes(0) returns(0) {
-    0x01                               // [0]
-    __ERROR(OverflowError)             // [calldata,0]
-    0x00                               // [0, calldata,0]
-    mstore                             // [0]  memory: 0x00 -> error_selector
-    0x04                               // [0x04, 0]
+    0x11                               // [0x11]
+    __ERROR(OverflowError)             // [calldata,0x11]
+    0x00                               // [0x00, calldata,0x11]
+    mstore                             // [0x11]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 0x11]
     mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
     0x24                               // [0x24]
-    0x00                               // [0x24, 0]
+    0x00                               // [0x00, 0x24]
     revert                             // []
 }
 
 #define macro UnderFlowRevert() = takes(0) returns(0) {
-    0x01                               // [0]
-    __ERROR(UnderFlowError)            // [calldata,0]
-    0x00                               // [0, calldata,0]
-    mstore                             // [0]  memory: 0x00 -> error_selector
-    0x04                               // [0x04, 0]
+    0x11                               // [0x11]
+    __ERROR(UnderFlowError)            // [calldata,0x11]
+    0x00                               // [0x00, calldata,0x11]
+    mstore                             // [0x11]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 0x11]
     mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
     0x24                               // [0x24]
-    0x00                               // [0x24, 0]
+    0x00                               // [0x00, 0x24]
+    revert                             // []
+}
+
+
+#define macro DivZeroError() = takes(0) returns(0) {
+    0x12                               // [12]
+    __ERROR(DivByZeroError)            // [calldata,12]
+    0x00                               // [0, calldata,02]
+    mstore                             // [12]  memory: 0x00 -> error_selector
+    0x04                               // [0x04, 12]
+    mstore                             // []   memory: 0x00 -> error_selector, 0x04 -> error_data
+    0x24                               // [0x24]
+    0x00                               // [0x00, 0x24]
     revert                             // []
 }
 
@@ -219,5 +252,57 @@
     underflowRevert:
         UnderFlowRevert()
 
+}
+
+
+#define macro Mul() = takes(0) returns(0) {
+    0x04                               // [0x04, func_selector]
+    calldataload                       // [calldata_num1, func_selector]
+    0x24                               // [0x24, calldata_num1, func_selector]
+    calldataload                       // [calldata_num2, calldata_num1, func_selector]
+    
+    dup2                               // [calldata_num1, calldata_num2, calldata_num1, func_selector]
+    dup2                               // [calldata_num2, calldata_num1, calldata_num2, calldata_num1, func_selector]
+    mul                                // [mul, calldata_num2, calldata_num1, func_selector]
+    swap2                              // [calldata_num1, calldata_num2, mul, func_selector]
+    MAX_INTERNAL()                     // [maxvalue, mul, func_selector]
+    dup2                               // [mul, maxvalue, mul, func_selector]
+    lt                                 // [bool, mul,func_selector]
+    overflowRevert                     // [PC,bool,mul, func_selector]
+    jumpi                              // [mul, func_selector]
+    
+    0x00                               // [0x00, mul, calldata_num2, calldata_num1, func_selector]
+    mstore                             // [mul, calldata_num2, calldata_num1, func_selector]  memory: 0x00 -> mul
+    0x20                               // [0x20, calldata_num2, calldata_num1, func_selector]
+    0x00                               // [0x20, calldata_num2, calldata_num1, func_selector, 0]
+    return                             // []
+
+    overflowRevert:
+        OverflowRevert()
+}
+
+
+#define macro Div() = takes(0) returns(0) {
+    0x04                               // [0x04, func_selector]
+    calldataload                       // [calldata_num1, func_selector]
+    0x24                               // [0x24, calldata_num1, func_selector]
+    calldataload                       // [calldata_num2, calldata_num1, func_selector]
+
+    dup1                               // [calldata_num2, calldata_num2, calldata_num1, func_selector]
+    iszero                             // [bool, calldata_num2, calldata_num1, func_selector]
+    div_ZeroError                      // [PC,bool, calldata_num2, calldata_num1, func_selector]
+    jumpi                              // [calldata_num2, calldata_num1, func_selector]
+    
+    div                                // [div, func_selector]
+    
+    
+    0x00                               // [0x00, div, func_selector]
+    mstore                             // [func_selector]  memory: 0x00 -> div
+    0x20                               // [0x20, func_selector]
+    0x00                               // [0x00, 0x20, func_selector]
+    return                             // []
+
+    div_ZeroError:
+        DivZeroError()               
 }
    
