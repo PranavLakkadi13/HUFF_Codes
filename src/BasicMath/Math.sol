@@ -2,18 +2,7 @@
 pragma solidity ^0.8.25;
 
 contract MATHSOLC {
-    function prime(uint n) public pure returns (bool) {
-        if (n < 2) {
-            return false;
-        }
-        for (uint i = 2; i * i <= n; i++) {
-            if (n % i == 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-
+    
     function add(uint a, uint b) public pure returns (uint) {
         return a + b;
     }
@@ -29,10 +18,23 @@ contract MATHSOLC {
     function div(uint a, uint b) public pure returns (uint) {
         return a / b;
     }
-    
+
     function mod(uint a, uint b) public pure returns (uint) {
         return a % b;
     }
+    
+    function prime(uint n) public pure returns (bool) {
+        if (n < 2) {
+            return false;
+        }
+        for (uint i = 2; i * i <= n; i++) {
+            if (n % i == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     
     function pow(uint a, uint b) public pure returns (uint) {
         return a ** b;
@@ -49,30 +51,6 @@ contract MATHSOLC {
         } else if (y != 0) {
             z = 1;
         }
-    }
-    
-    function ceil(int a) public pure returns (int) {
-        return a + 1;
-    }
-    
-    function floor(int a) public pure returns (int) {
-        return a - 1;
-    }
-    
-    function round(int a) public pure returns (int) {
-        return a + 1;
-    }
-    
-    function abs(int a) public pure returns (int) {
-        return a < 0 ? -a : a;
-    }
-    
-    function max(uint a, uint b) public pure returns (uint) {
-        return a > b ? a : b;
-    }
-    
-    function min(uint a, uint b) public pure returns (uint) {
-        return a < b ? a : b;
     }
     
     function avg(uint a, uint b) public pure returns (uint) {

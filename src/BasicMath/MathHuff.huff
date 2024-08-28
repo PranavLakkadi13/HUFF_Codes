@@ -3,6 +3,7 @@
 #define function sub(uint a, uint b) pure returns (uint)
 #define function mul(uint a, uint b) pure returns (uint)
 #define function div(uint a, uint b) pure returns (uint)
+#define function mod(uint a, uint b) pure returns (uint)
 
 
 // Errors 
@@ -58,6 +59,12 @@
     div_selector           // [PC,bool,func_selector]
     jumpi                  // [func_selector]
 
+    dup1                   // [func_selector, func_selector]
+    __FUNC_SIG(mod)        // [mod_selector,func_selector,func_selector]
+    eq                     // [bool,func_selector]
+    mod_selector           // [PC,bool,func_selector]
+    jumpi                  // [func_selector]
+
     0x20
     0x00
     revert 
@@ -80,7 +87,10 @@
         Mul()              
 
     div_selector:
-        Div()                          
+        Div()               
+
+    mod_selector:
+        Mod()                          
 }
 
 
@@ -193,7 +203,6 @@
         pop             // [calldata_num2, sub, func_selector]
 }
 
-
 #define macro Add() = takes(0) returns(0) {
     0x04                               // [0x04, func_selector]
     calldataload                       // [calldata_num1, func_selector]]
@@ -227,22 +236,20 @@
 
 
 #define macro Sub() = takes(0) returns(0) {
-    0x04                              // [0x04, func_selector]
-    calldataload                       // [calldata_num1, func_selector]
-    0x24                               // [0x24, calldata_num1, func_selector]
-    calldataload                       // [calldata_num2, calldata_num1, func_selector]
-    
-    dup2                               // [calldata_num1, calldata_num2, calldata_num1, func_selector]
-    dup2                               // [calldata_num2, calldata_num1, calldata_num2, calldata_num1, func_selector]
-    sub                                // [sub, calldata_num2, calldata_num1, func_selector]
-    
-    swap2                              // [calldata_num1, calldata_num2, sub, func_selector]
-    MIN_INTERNAL()                     // [minvalue, sub, func_selector]
-    dup2                               // [sub, minvalue, sub, func_selector]
-    gt                                 // [bool, sub,func_selector]
-    underflowRevert                    // [PC,bool,sub, func_selector]
-    jumpi                              // [sub, func_selector]
+    // gas cost is 21870
+    0x24                               // [0x24, func_selector]  
+    calldataload                       // [calldata_num2, func_selector]
+    0x04                               // [0x04, calldata_num2, func_selector]
+    calldataload                       // [calldata_num1, calldata_num2, func_selector]
 
+    dup2                               // [calldata_num2, calldata_num1, calldata_num2, func_selector]
+    dup2                               // [calldata_num1, calldata_num2, calldata_num1, calldata_num2, func_selector]
+    lt                                 // [bool, calldata_num1, calldata_num2, func_selector]
+    underflowRevert                    // [PC,bool, calldata_num1, calldata_num2, func_selector]
+    jumpi                              // [calldata_num1, calldata_num2, func_selector]
+
+    sub                                // [sub, func_selector]
+    
     0x00                               // [0x00, sub, func_selector]
     mstore                             // [func_selector]  memory: 0x00 -> sub
     0x20                               // [0x20]
@@ -264,6 +271,10 @@
     dup2                               // [calldata_num1, calldata_num2, calldata_num1, func_selector]
     dup2                               // [calldata_num2, calldata_num1, calldata_num2, calldata_num1, func_selector]
     mul                                // [mul, calldata_num2, calldata_num1, func_selector]
+    dup1                                // [mul, mul, calldata_num2, calldata_num1, func_selector]
+    iszero                             // [bool, mul, calldata_num2, calldata_num1, func_selector]
+    returnZero                         // [PC, bool, mul, calldata_num2, calldata_num1, func_selector]
+    jumpi                              // [mul, calldata_num2, calldata_num1, func_selector]
     swap2                              // [calldata_num1, calldata_num2, mul, func_selector]
     MAX_INTERNAL()                     // [maxvalue, mul, func_selector]
     dup2                               // [mul, maxvalue, mul, func_selector]
@@ -271,30 +282,37 @@
     overflowRevert                     // [PC,bool,mul, func_selector]
     jumpi                              // [mul, func_selector]
     
-    0x00                               // [0x00, mul, calldata_num2, calldata_num1, func_selector]
-    mstore                             // [mul, calldata_num2, calldata_num1, func_selector]  memory: 0x00 -> mul
-    0x20                               // [0x20, calldata_num2, calldata_num1, func_selector]
-    0x00                               // [0x20, calldata_num2, calldata_num1, func_selector, 0]
-    return                             // []
+    0x00                               // [0x00, mul, func_selector]
+    mstore                             // [func_selector]  memory: 0x00 -> mul
+    0x20                               // [0x20, func_selector]
+    0x00                               // [0x00, 0x20, func_selector]
+    return                             // [func_selector]
 
     overflowRevert:
-        OverflowRevert()
+        OverflowRevert()               
+        
+    returnZero:
+        0x00                            // [0x00]
+        0x00                            // [0x00, 0x00]
+        mstore                          // []  memory: 0x00 -> 0x00
+        0x20                           // [0x20]
+        0x00                           // [0x00,0x20]
+        return                         // []
 }
 
 
 #define macro Div() = takes(0) returns(0) {
-    0x04                               // [0x04, func_selector]
-    calldataload                       // [calldata_num1, func_selector]
-    0x24                               // [0x24, calldata_num1, func_selector]
-    calldataload                       // [calldata_num2, calldata_num1, func_selector]
+    0x24                               // [0x24, func_selector]
+    calldataload                       // [calldata_num2, func_selector]
+    0x04                               // [0x04, calldata_num2, func_selector]
+    calldataload                       // [calldata_num1, calldata_num2, func_selector]
 
-    dup1                               // [calldata_num2, calldata_num2, calldata_num1, func_selector]
-    iszero                             // [bool, calldata_num2, calldata_num1, func_selector]
-    div_ZeroError                      // [PC,bool, calldata_num2, calldata_num1, func_selector]
-    jumpi                              // [calldata_num2, calldata_num1, func_selector]
-    
+    dup2                               // [calldata_num2, calldata_num1, calldata_num2, func_selector]
+    iszero                             // [bool, calldata_num1, calldata_num2, func_selector]
+    div_ZeroError                      // [PC,bool, calldata_num1, calldata_num2, func_selector]
+    jumpi                              // [calldata_num1, calldata_num2, func_selector]
+
     div                                // [div, func_selector]
-    
     
     0x00                               // [0x00, div, func_selector]
     mstore                             // [func_selector]  memory: 0x00 -> div
@@ -304,5 +322,29 @@
 
     div_ZeroError:
         DivZeroError()               
+}
+
+
+#define macro Mod() = takes(0) returns(0) {
+    0x24                               // [0x24, func_selector]
+    calldataload                       // [calldata_num2, func_selector]
+    0x04                               // [0x04, calldata_num2, func_selector]
+    calldataload                       // [calldata_num1, calldata_num2, func_selector]
+
+    dup2                               // [calldata_num2, calldata_num1, calldata_num2, func_selector]
+    iszero                             // [bool, calldata_num1, calldata_num2, func_selector]
+    div_ZeroError                      // [PC,bool, calldata_num1, calldata_num2, func_selector]
+    jumpi                              // [calldata_num1, calldata_num2, func_selector]
+
+    mod                                // [mod, func_selector]
+    
+    0x00                               // [0x00, mod, func_selector]
+    mstore                             // [func_selector]  memory: 0x00 -> mod
+    0x20                               // [0x20, func_selector]
+    0x00                               // [0x00, 0x20, func_selector]
+    return                             // []
+
+    div_ZeroError:
+        DivZeroError()                 // []
 }
    
