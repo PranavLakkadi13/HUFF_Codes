@@ -5,7 +5,7 @@
 #define function div(uint a, uint b) pure returns (uint)
 #define function mod(uint a, uint b) pure returns (uint)
 #define function prime(uint a) pure returns (bool)
-#define function sum(uint256[] calldata nums) pure returns (uint)
+#define function sum(uint[] calldata nums) pure returns (uint)
 
 
 // Errors 
@@ -114,6 +114,11 @@
 }
 
 
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+//////////////// Internal Helpers && Erros ////////////////////////
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
 
 
 #define macro SIZE_ERROR() = takes(0) returns(0) {
@@ -222,6 +227,52 @@
     calldata_num2:
         pop             // [calldata_num2, sub, func_selector]
 }
+
+#define macro MAx_Internal_Add_Internal() = takes(2) returns (1) {
+                        //   [array[i], 0x00(sum)]
+    dup2                //   [0x00(sum), array[i], 0x00(sum)]
+    dup2                //   [array[i], 0x00(sum), array[i], 0x00(sum)]
+    gt                  //   [bool, array[i], 0x00(sum)]
+    iszero              //   [bool, array[i], 0x00(sum)]
+    iszero              //   [bool, array[i], 0x00(sum)]
+    array_val_max       //   [PC, bool, array[i], 0x00(sum)]
+    jumpi               //   [array[i], 0x00(sum)]
+
+    pop                 //   [0x00(sum)]
+    free_jump           //   [PC,0x00(sum)]
+    jump                //   [0x00(sum)]
+
+
+    array_val_max:
+        swap1           //   [0x00(sum), array[i]]
+        pop             //   [0x00(sum)]
+
+    free_jump:
+}
+
+#define macro Add_Internal() = takes(2) returns(1) {
+                                       // [0x00(sum), array[i]]
+    dup2                               // [array[i], 0x00(sum), array[i]]
+    dup2                               // [0x00(sum), array[i], 0x00(sum), array[i]]
+    add                                // [sum, 0x00(sum), array[i]]
+
+    // swap2                              // [array[i], 0x00(sum), sum]
+    MAx_Internal_Add_Internal()        // [maxvalue, sum]
+    dup2                               // [sum, maxvalue, sum]
+    lt                                 // [bool, sum]
+    overflowRevert                     // [PC,bool,sum]
+    jumpi                              // [sum]
+
+
+    overflowRevert:
+        OverflowRevert()               // []
+}
+
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+//////////////////////////  Functions  ////////////////////////////
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
 
 
 #define macro Add() = takes(0) returns(0) {
@@ -408,15 +459,68 @@
 
     // This is the sum variable 
     // sum = 0
-    0x00                               // [0x00, array_size, func_selector]
+    0x00                               // [0x00(sum), array_size, func_selector]
     // this is for the index 
-    // i = 0 
-    0x00                               // [0x00, 0x00, array_size, func_selector]
+    // i = 0 (added i in the () to keep track and understand the stack)
+    0x00                               // [0x00(i), 0x00(sum), array_size, func_selector]
 
     loopBegin:
-                                       // [0x00, 0x00, array_size, func_selector]
-        dup3                           // [array_size, 0x00, 0x00, array_size, func_selector]
+        // Refered way 
+        //                                // [0x00(i), 0x00(sum), array_size, func_selector]
+        // dup3                           // [array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        // dup2                           // [0x00(i), array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        // 0x20                           // [0x20, 0x00(i), array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        // mul                            // [0x00(i) * 32 , array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        // lt                             // [bool, 0x00(i), 0x00(sum), array_size, func_selector]
+        // iszero                         // [bool, 0x00(i), 0x00(sum), array_size, func_selector]
+        // end                            // [PC, bool, 0x00(i), 0x00(sum), array_size, func_selector]
+        // jumpi                          // [0x00(i), 0x00(sum), array_size, func_selector]
 
+
+        // dup1                          // [0x00(i), 0x00(i), 0x00(sum), array_size, func_selector]
+        // 0x20                          // [0x20, 0x00(i), 0x00(i), 0x00(sum), array_size, func_selector]
+        // mul                           // [0x00(i) * 32, 0x00(i), 0x00(sum), array_size, func_selector]
+
+
+        // my try optimised way 
+                                        // [0x00(i), 0x00(sum), array_size, func_selector]
+        dup3                           // [array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        dup2                           // [0x00(i), array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        0x20                           // [0x20, 0x00(i), array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        mul                            // [0x00(i) * 32 , array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        dup1                           // [0x00(i) * 32, 0x00(i) * 32, array_size, 0x00(i), 0x00(sum), array_size, func_selector]
+        swap2                          // [array_size, 0x00(i) * 32, 0x00(i) * 32, 0x00(i), 0x00(sum), array_size, func_selector]
+        gt                             // [bool, 0x00(i) * 32 , 0x00(i), 0x00(sum), array_size, func_selector]
+        iszero                         // [bool, 0x00(i) * 32, 0x00(i), 0x00(sum), array_size, func_selector]
+        end                            // [PC, bool,0x00(i) * 32 ,0x00(i), 0x00(sum), array_size, func_selector]
+        jumpi                          // [0x00(i) * 32, 0x00(i), 0x00(sum), array_size, func_selector]
 
     
+        0x44                          // [0x44, 0x00(i) * 32, 0x00(i), 0x00(sum), array_size, func_selector]
+        // 0x00(i) * 32 + 0x44 -> array[i] where 0x44 is the offset of the calldata (func_selector + array init vals)
+        // https://flawsomedev.com/blog/huff-by-example#huff-solution  --> refer this blog for better understanding 
+        
+        add                           // [0x00(i) * 32 + 0x44, 0x00(i), 0x00(sum), array_size, func_selector]
+        
+        // 0x00(i) * 32 + 0x44 --> will be denoted as array[i]
+        calldataload                  // [array[i], 0x00(i), 0x00(sum), array_size, func_selector]  
+                                      // [array[i], 0x00(i), 0x00(sum), array_size, func_selector]
+        dup3                          // [0x00(sum), array[i], 0x00(i), 0x00(sum), array_size, func_selector]
+        Add_Internal()                // [array[i] + sum, 0x00(i), 0x00(sum), array_size, func_selector]
+        swap2                         // [0x00(sum), 0x00(i), array[i] + sum, array_size, func_selector]
+        pop                           // [0x00(i), array[i] + sum, array_size, func_selector]
+        0x01                          // [0x01, 0x00(i), array[i] + sum, array_size, func_selector]
+        add                           // [0x00(i) + 1, array[i] + sum, array_size, func_selector]
+        loopBegin                     // [PC,0x00(i) + 1, array[i] + sum, array_size, func_selector]
+        jump                          // [0x00(i) + 1, array[i] + sum, array_size, func_selector]
+
+
+    end: 
+                                      // [0x(i), finalSum, func_selector]
+        pop                           // [finalSum, arrayLength]
+        push0                         // [0x00, finalSum, arrayLength]
+        mstore                        // [arrayLength]  memory: 0x00 -> finalSum
+        0x20                          // [0x20, arrayLength]
+        push0                         // [0x00, 0x20, arrayLength]
+        return                        // [arrayLength]
 }
