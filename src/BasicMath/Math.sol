@@ -57,7 +57,7 @@ contract MATHSOLC {
         return (a + b) / 2;
     }
     
-    function sum(uint[] memory arr) public pure returns (uint) {
+    function sum(uint[] calldata arr) public pure returns (uint) {
         uint s = 0;
         for (uint i = 0; i < arr.length; i++) {
             s += arr[i];
